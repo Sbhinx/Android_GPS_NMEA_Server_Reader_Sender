@@ -2,19 +2,19 @@
 
 buildscript {
     repositories {
-        jcenter()
+        google()         // 告诉编译器去谷歌的官方仓库找
+        mavenCentral()   // 加上这个以防万一
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.2.3'
-
-        // NOTE: Do not place your application dependencies here; they belong
-        // in the individual module build.gradle files
+        // 把极度古老的 2.2.3 升级到配合 Gradle 8.4 的 8.1.0 版本
+        classpath 'com.android.tools.build:gradle:8.1.0'
     }
 }
 
 allprojects {
     repositories {
-        jcenter()
+        google()         // 同样，替换掉已经倒闭的 jcenter()
+        mavenCentral()
     }
 }
 

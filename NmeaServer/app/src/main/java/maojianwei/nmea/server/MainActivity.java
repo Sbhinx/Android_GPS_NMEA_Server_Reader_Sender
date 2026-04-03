@@ -1,455 +1,210 @@
 package maojianwei.nmea.server;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.location.GpsSatellite;
-import android.location.GpsStatus;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
-import android.view.View.OnClickListener;
-import android.widget.CompoundButton;
+import android.text.method.ScrollingMovementMethod;
+import android.view.WindowManager;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import win.maojianwei.nmea.nmeaserver.R;
 
-import static android.location.GpsStatus.GPS_EVENT_SATELLITE_STATUS;
-import static android.widget.Toast.LENGTH_LONG;
-import static android.widget.Toast.LENGTH_SHORT;
-import static maojianwei.nmea.server.MaoNmeaTools.ACTIVITY_LOCATION_SOURCE_SETTINGS;
-import static maojianwei.nmea.server.MaoNmeaTools.CheckEnableGpsDevice;
-import static maojianwei.nmea.server.MaoNmeaTools.CheckGPSLocationProviderEnable;
-import static maojianwei.nmea.server.MaoNmeaTools.ClipboardLabel;
-import static maojianwei.nmea.server.MaoNmeaTools.CopyToClipboard;
-import static maojianwei.nmea.server.MaoNmeaTools.CreateNmeaServer;
-import static maojianwei.nmea.server.MaoNmeaTools.DestroyNmeaServer;
-import static maojianwei.nmea.server.MaoNmeaTools.DoubleBlankspace;
-import static maojianwei.nmea.server.MaoNmeaTools.DoubleEnter;
-import static maojianwei.nmea.server.MaoNmeaTools.EnableGpsDevice;
-import static maojianwei.nmea.server.MaoNmeaTools.GenerateNmeaWithBeidou;
-import static maojianwei.nmea.server.MaoNmeaTools.MaoNmeaSendMessage_Close;
-import static maojianwei.nmea.server.MaoNmeaTools.MaoNmeaSendMessage_write_flush;
-import static maojianwei.nmea.server.MaoNmeaTools.Need_Permission_ACCESS_FINE_LOCATION;
-import static maojianwei.nmea.server.MaoNmeaTools.No_Permission_ACCESS_FINE_LOCATION;
-import static maojianwei.nmea.server.MaoNmeaTools.PERMISSION_ACCESS_FINE_LOCATION;
-import static maojianwei.nmea.server.MaoNmeaTools.Restart_Permission_ACCESS_FINE_LOCATION;
-import static maojianwei.nmea.server.MaoNmeaTools.SingleEnter;
-import static maojianwei.nmea.server.MaoNmeaTools.calSatelliteUseInFix;
-import static maojianwei.nmea.server.MaoNmeaTools.convertNmeaGGA;
-import static maojianwei.nmea.server.MaoNmeaTools.convertNmeaGLL;
-import static maojianwei.nmea.server.MaoNmeaTools.convertNmeaGSA;
-import static maojianwei.nmea.server.MaoNmeaTools.convertNmeaGSV;
-import static maojianwei.nmea.server.MaoNmeaTools.convertNmeaRMC;
-import static maojianwei.nmea.server.MaoNmeaTools.convertNmeaVTG;
-
 public class MainActivity extends Activity {
 
-    private static final int GPS_PORT = 8888;
     private static final int PERMISSION_REQUEST_CODE = 940110;
 
-
-    private LocationManager mLocationManager;
-    private MaoGpsListener maoGpsListener;
-
-    private Context activityContext;
-
-    private boolean needOutput;
-    private Switch outputSwitch;
-    private boolean useApiConvert;
-    private Switch originSwitch;
     private TextView logView;
     private TextView nmeaView;
-
-    private List<Socket> clients;
-    private ServerSocket server;
-    private ExecutorService threadPool;
-    private boolean exitServer;
+    private Switch outputSwitch;
+    private Switch originSwitch;
 
     private int logCount = 0;
     private List<String> logQueue = new ArrayList<>();
     private int nmeaCount = 0;
     private List<String> nmeaLogQueue = new ArrayList<>();
 
+    // 用于记录是否已经打印过“开始输出报文”
+    private boolean hasLoggedStart = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        this.activityContext = this;
+        initUI();
+
+        // 绑定内存级回调
+        GpsNmeaService.uiCallback = new GpsNmeaService.NmeaCallback() {
+            @Override
+            public void onLogMessage(String msg) {
+                programLog(msg);
+            }
+
+            @Override
+            public void onNmeaMessage(String nmea) {
+                nmeaLog(nmea);
+            }
+        };
 
         checkAndroidPermission();
-
-        this.logView = ((TextView) findViewById(R.id.logText));
-        this.logView.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                logView.setText(R.string.Mao_NMEA_TitleView);
-            }
-        });
-        this.nmeaView = ((TextView) findViewById(R.id.nmeaText));
-        this.nmeaView.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                ClipboardManager clipboardManager = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-                clipboardManager.setPrimaryClip(ClipData.newPlainText(ClipboardLabel, nmeaView.getText()));
-                Toast.makeText(activityContext, CopyToClipboard, LENGTH_SHORT).show();
-            }
-        });
-        this.outputSwitch = ((Switch) findViewById(R.id.OutputSwitch));
-        this.outputSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                needOutput = isChecked;
-            }
-        });
-        this.originSwitch = ((Switch) findViewById(R.id.OriginSwitch));
-        this.originSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                useApiConvert = isChecked;
-            }
-        });
-
-        this.needOutput = true;
-        this.useApiConvert = true;
-
-        onCreateLocation();
-        checkEnableGpsDevice();
-        createNmeaServer();
     }
 
-    @TargetApi(23)
-    private void checkAndroidPermission(){
-        if (Build.VERSION.SDK_INT >= 23) {
-            if (PackageManager.PERMISSION_GRANTED != checkCallingOrSelfPermission(PERMISSION_ACCESS_FINE_LOCATION)) {
-                requestPermissions(new String[]{PERMISSION_ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_CODE);
+    private void initUI() {
+        this.logView = findViewById(R.id.logText);
+        this.nmeaView = findViewById(R.id.nmeaText);
+
+        // 让状态输出框和报文输出框支持上下滑动
+        this.logView.setMovementMethod(new ScrollingMovementMethod());
+        this.nmeaView.setMovementMethod(new ScrollingMovementMethod());
+
+        // 让报文输出框支持复制
+        this.nmeaView.setOnClickListener(v -> {
+            ClipboardManager clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            clipboardManager.setPrimaryClip(ClipData.newPlainText("NMEA", nmeaView.getText()));
+            Toast.makeText(this, "已复制", Toast.LENGTH_SHORT).show();
+        });
+
+        this.outputSwitch = findViewById(R.id.OutputSwitch);
+        this.outputSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            GpsNmeaService.needOutput = isChecked;
+            programLog("👉 报文输出: " + (isChecked ? "已打开" : "已关闭"));
+            if (!isChecked) {
+                hasLoggedStart = false;
             }
+        });
+
+        this.originSwitch = findViewById(R.id.OriginSwitch);
+        this.originSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            GpsNmeaService.useApiConvert = isChecked;
+            programLog("👉 GPS模式已切换到: " + (isChecked ? "API转换" : "FLP融合"));
+        });
+
+        GpsNmeaService.needOutput = true;
+        GpsNmeaService.useApiConvert = false;
+    }
+
+    // 🚀 核心升级：高版本 Android 智能权限动态申请
+    private void checkAndroidPermission() {
+        List<String> permissionsToRequest = new ArrayList<>();
+
+        // 1. 基础定位权限 (Android 6.0+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.ACCESS_FINE_LOCATION);
+            }
+            if (checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.ACCESS_COARSE_LOCATION);
+            }
+        }
+
+        // 2. 通知栏显示权限 (Android 13+ 必须，否则前台服务会被悄悄杀掉)
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+
+        // 如果有缺失的权限，统一申请；如果全都有了，直接启动服务
+        if (!permissionsToRequest.isEmpty()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(permissionsToRequest.toArray(new String[0]), PERMISSION_REQUEST_CODE);
+            }
+        } else {
+            startEngineService();
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        switch (requestCode){
-            case PERMISSION_REQUEST_CODE:
-                if(grantResults[0] == PackageManager.PERMISSION_GRANTED){
-                    Toast.makeText(activityContext, Restart_Permission_ACCESS_FINE_LOCATION, LENGTH_LONG).show();
-                }else{
-                    Toast.makeText(activityContext, Need_Permission_ACCESS_FINE_LOCATION, LENGTH_LONG).show();
-                }
-        }
-    }
-
-    protected void onCreateLocation() {
-        if (this.mLocationManager == null) {
-            this.mLocationManager = ((LocationManager) getSystemService(Context.LOCATION_SERVICE));
-            if (this.mLocationManager != null) {
-
-                if (PackageManager.PERMISSION_GRANTED == checkCallingOrSelfPermission(PERMISSION_ACCESS_FINE_LOCATION)) {
-                    this.maoGpsListener = new MaoGpsListener();
-                    this.mLocationManager.addGpsStatusListener(this.maoGpsListener);
-                    this.mLocationManager.addNmeaListener(this.maoGpsListener);
-                } else {
-                    programLog(No_Permission_ACCESS_FINE_LOCATION);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            boolean allGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
                 }
             }
-        }
-    }
 
-    protected void checkEnableGpsDevice() {
-        if (this.mLocationManager != null) {
-            if (!checkGPSLocationProviderEnable()) {
-                try {
-                    startActivity(new Intent(ACTIVITY_LOCATION_SOURCE_SETTINGS));
-                } catch (Exception localException) {
-                    programLog(CheckEnableGpsDevice + localException.getMessage());
-                }
+            if (allGranted) {
+                startEngineService();
             } else {
-                requestGpsMessage();
+                Toast.makeText(this, "需要定位和通知权限才能在后台运行", Toast.LENGTH_LONG).show();
+                programLog("❌ 权限被拒绝，无法启动引擎");
             }
         }
     }
 
-    boolean checkGPSLocationProviderEnable() {
-        if (this.mLocationManager != null) {
-            try {
-                return this.mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-            } catch (Exception paramString) {
-                programLog(CheckGPSLocationProviderEnable + paramString.getMessage());
-            }
-        }
-        return false;
-    }
-
-    @TargetApi(9)
-    protected void requestGpsMessage() {
-        if ((this.mLocationManager != null) && (Build.VERSION.SDK_INT >= 9) &&
-                (PackageManager.PERMISSION_GRANTED == checkCallingOrSelfPermission(PERMISSION_ACCESS_FINE_LOCATION))) {
-            this.mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 500, (float) 0.1, this.maoGpsListener);
-        }
-    }
-
-    private void createNmeaServer() {
-        exitServer = false;
-        clients = new ArrayList<>();
-        threadPool = Executors.newFixedThreadPool(2);
-
+    private void startEngineService() {
+        programLog("正在启动后台 NMEA 引擎...");
+        Intent serviceIntent = new Intent(this, GpsNmeaService.class);
         try {
-            server = new ServerSocket(GPS_PORT);
-            threadPool.submit(new MaoNmeaServer());
-        } catch (IOException ioe) {
-            programLog(CreateNmeaServer + ioe.getMessage());
+            android.content.ComponentName name;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                name = startForegroundService(serviceIntent);
+            } else {
+                name = startService(serviceIntent);
+            }
+
+            if (name == null) {
+                programLog("❌ 致命错误：系统找不到 GpsNmeaService 服务！");
+                programLog("👉 请务必把 <service> 标签加到 AndroidManifest.xml 里！");
+            } else {
+                programLog("✅ 已向系统发送引擎启动指令");
+            }
+        } catch (Exception e) {
+            programLog("❌ 启动异常: " + e.getMessage());
         }
     }
-
 
     @Override
     protected void onDestroy() {
-        onDestroyLocation();
-
-        destroyNmeaServer();
-
+        GpsNmeaService.uiCallback = null;
         super.onDestroy();
     }
 
-    protected void onDestroyLocation() {
-        if (this.mLocationManager != null) {
-            if (PackageManager.PERMISSION_GRANTED == checkCallingOrSelfPermission(PERMISSION_ACCESS_FINE_LOCATION)) {
-                this.mLocationManager.removeUpdates(this.maoGpsListener);
-            }
-
-            this.mLocationManager.removeGpsStatusListener(this.maoGpsListener);
-            this.mLocationManager.removeNmeaListener(this.maoGpsListener);
-            this.mLocationManager = null;
-            this.maoGpsListener = null;
-        }
-    }
-
-    private void destroyNmeaServer() {
-        exitServer = true;
-
-        try {
-            server.close();
-        } catch (IOException ioe) {
-            programLog(DestroyNmeaServer + ioe.getMessage());
-        }
-
-        for (Socket c : clients) {
-            try {
-                c.close();
-            } catch (IOException ioe) {
-                programLog(DestroyNmeaServer + ioe.getMessage());
-            }
-        }
-        clients.clear();
-
-        threadPool.shutdownNow();
-        try {
-            threadPool.awaitTermination(3, TimeUnit.SECONDS);
-        } catch (InterruptedException ie) {
-            programLog(DestroyNmeaServer + ie.getMessage());
-        }
-
-        server = null;
-        threadPool = null;
-        clients = null;
-    }
-
-
-    public void programLog(CharSequence paramCharSequence) {
-        if (!needOutput)
-            return;
-
-        if (logQueue.size() >= 2)
-            logQueue.remove(0);
-        logQueue.add(Integer.toString(++logCount) + DoubleBlankspace + paramCharSequence + SingleEnter);
-
+    public void programLog(String log) {
+        if (logQueue.size() >= 50) logQueue.remove(0);
+        logQueue.add(++logCount + "  " + log + "\n");
         StringBuilder temp = new StringBuilder();
-        for (String msg : logQueue) {
-            temp.append(msg);
-        }
-
-        if (this.logView != null) {
-            this.logView.setText(temp.toString());
-        }
+        for (String msg : logQueue) temp.append(msg);
+        logView.setText(temp.toString());
+        scrollToBottom(logView);
     }
 
     public void nmeaLog(String nmea) {
-        if (!needOutput)
-            return;
+        if (!hasLoggedStart) {
+            programLog("✅ 开始输出报文");
+            hasLoggedStart = true;
+        }
 
-        if (nmeaLogQueue.size() >= 15)
-            nmeaLogQueue.remove(0);
-        nmeaLogQueue.add(Integer.toString(++nmeaCount) + DoubleBlankspace + nmea + DoubleEnter);
-
+        if (nmeaLogQueue.size() >= 50) nmeaLogQueue.remove(0);
+        nmeaLogQueue.add(++nmeaCount + "  " + nmea + "\n\n");
         StringBuilder temp = new StringBuilder();
-        for (String msg : nmeaLogQueue) {
-            temp.append(msg);
-        }
-
-        if (this.nmeaView != null) {
-            this.nmeaView.setText(temp.toString());
-        }
+        for (String msg : nmeaLogQueue) temp.append(msg);
+        nmeaView.setText(temp.toString());
+        scrollToBottom(nmeaView);
     }
 
-
-    private void generateNmeaWithBeidou() {
-
-        if (PackageManager.PERMISSION_GRANTED != checkCallingOrSelfPermission(PERMISSION_ACCESS_FINE_LOCATION)) {
-            programLog(GenerateNmeaWithBeidou + No_Permission_ACCESS_FINE_LOCATION);
-            return;
-        }
-
-
-        Iterator satelliteIterator = this.mLocationManager.getGpsStatus(null).getSatellites().iterator();
-        List<GpsSatellite> satellites = new ArrayList<>();
-        while (satelliteIterator.hasNext())
-            satellites.add((GpsSatellite) satelliteIterator.next());
-
-        String temp;
-        temp = convertNmeaGSA(satellites);
-        commitNmeaMessage(temp);
-
-        String[] tempList = convertNmeaGSV(satellites);
-        for (String gsv : tempList)
-            commitNmeaMessage(gsv);
-
-
-        Location location = this.mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        if (location != null) {
-            temp = convertNmeaGGA(location, calSatelliteUseInFix(satellites));
-            commitNmeaMessage(temp);
-            temp = convertNmeaGLL(location);
-            commitNmeaMessage(temp);
-            temp = convertNmeaRMC(location);
-            commitNmeaMessage(temp);
-            temp = convertNmeaVTG(location);
-            commitNmeaMessage(temp);
-        }
-    }
-
-    private void commitNmeaMessage(String nmea) {
-        nmeaLog(nmea);
-        threadPool.submit(new MaoNmeaSendMessage(nmea));
-    }
-
-
-    private class MaoNmeaServer implements Runnable {
-        public void run() {
-            while (!exitServer) {
-                try {
-                    Socket client = server.accept();
-                    clients.add(client);
-                } catch (IOException ioe) {
-                    programLog(ioe.getMessage());
-                    break;
+    private void scrollToBottom(TextView textView) {
+        textView.post(() -> {
+            if (textView.getLayout() != null) {
+                int scrollAmount = textView.getLayout().getLineTop(textView.getLineCount()) - textView.getHeight();
+                if (scrollAmount > 0) {
+                    textView.scrollTo(0, scrollAmount);
+                } else {
+                    textView.scrollTo(0, 0);
                 }
             }
-        }
-    }
-
-    private class MaoNmeaSendMessage implements Runnable {
-        String nmeaMessage;
-
-        MaoNmeaSendMessage(String nmeaMessage) {
-            this.nmeaMessage = nmeaMessage;
-        }
-
-        public void run() {
-            OutputStreamWriter temp;
-
-            for (Socket c : clients) {
-                if (exitServer)
-                    break;
-
-                try {
-                    temp = new OutputStreamWriter(c.getOutputStream());
-                    temp.write(nmeaMessage, 0, nmeaMessage.length());
-                    temp.write(0x0A);
-                    temp.flush();
-                } catch (IOException ioe) {
-                    programLog(MaoNmeaSendMessage_write_flush + ioe.getMessage());
-                    clients.remove(c);
-
-                    try {
-                        c.close();
-                    } catch (IOException e) {
-                        programLog(MaoNmeaSendMessage_Close + e.getMessage());
-                    }
-                }
-            }
-        }
-    }
-
-    private class MaoGpsListener implements GpsStatus.Listener, GpsStatus.NmeaListener, LocationListener {
-
-        //GpsStatus.NmeaListener
-        @Override
-        public void onNmeaReceived(long timestamp, String nmea) {
-            if(!useApiConvert) {
-                //--- Separate two data source, API Convert and Silicon Original, to avoid NMEA message conflict ---
-                commitNmeaMessage(nmea);
-            }
-        }
-
-        //GpsStatus.Listener
-        public void onGpsStatusChanged(int event) {
-            if(useApiConvert) {
-                if (event == GPS_EVENT_SATELLITE_STATUS) {
-                    //--- Separate two data source, API Convert and Silicon Original, to avoid NMEA message conflict ---
-                    generateNmeaWithBeidou();
-                }
-            }
-        }
-
-        // LocationListener
-        @Override
-        public void onProviderDisabled(String provider) {
-            if (provider.equals(LocationManager.GPS_PROVIDER)) {
-                try {
-                    startActivity(new Intent(ACTIVITY_LOCATION_SOURCE_SETTINGS));
-                } catch (Exception localException) {
-                    programLog(EnableGpsDevice + localException.getMessage());
-                }
-            }
-        }
-
-        @Override
-        public void onLocationChanged(Location location) {
-            if(useApiConvert) {
-                //--- Separate two data source, API Convert and Silicon Original, to avoid NMEA message conflict ---
-                generateNmeaWithBeidou();
-            }
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-
-        }
+        });
     }
 }

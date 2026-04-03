@@ -1,82 +1,123 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/activity_main"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
-    android:paddingBottom="@dimen/activity_horizontal_margin"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#F2F2F2"
     tools:context="maojianwei.nmea.server.MainActivity">
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/nmeaText"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_below="@+id/logText"
-        android:text="@string/Mao_NMEA_TextView"
-        android:clickable="true" />
-
-    <TextView
-        android:text="@string/Mao_NMEA_TitleView"
-        android:layout_width="wrap_content"
-        android:id="@+id/logText"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_below="@+id/maoText"
-        android:layout_toStartOf="@+id/OutputSwitch"
-        android:layout_toLeftOf="@+id/OutputSwitch"
-        android:layout_height="80dp"
-        android:textStyle="normal|bold" />
-
-    <Switch
-        android:layout_width="wrap_content"
-        android:layout_height="50dp"
-        android:id="@+id/OutputSwitch"
-        android:showText="false"
-        android:splitTrack="false"
-        android:switchMinWidth="60dip"
-        android:checked="true"
-        tools:targetApi="lollipop"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentTop="true" />
-
-    <Switch
-        android:layout_width="wrap_content"
-        android:layout_height="50dp"
-        android:id="@+id/OriginSwitch"
-        android:switchMinWidth="60dip"
-        android:showText="false"
-        android:splitTrack="false"
-        android:checked="true"
-        tools:ignore="RtlHardcoded"
-        tools:targetApi="lollipop"
-        android:layout_below="@+id/OutputSwitch"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:layout_above="@+id/nmeaText"
-        android:layout_toRightOf="@+id/logText"
-        android:layout_toEndOf="@+id/logText" />
-
-    <TextView
-        android:text="@string/mao_name"
-        android:layout_width="wrap_content"
         android:id="@+id/maoText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/mao_name"
         android:textAlignment="center"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_toLeftOf="@+id/OutputSwitch"
-        android:layout_toStartOf="@+id/OutputSwitch"
-        android:layout_height="20dp"
-        android:textStyle="normal|bold" />
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="16dp" />
 
-</RelativeLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@android:color/white"
+        android:padding="12dp"
+        android:elevation="4dp"
+        android:layout_marginBottom="16dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="报文输出"
+                android:textStyle="bold" />
+            <Switch
+                android:id="@+id/OutputSwitch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:showText="false"
+                android:splitTrack="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="融合模式/API转换模式"
+                android:textStyle="bold" />
+            <Switch
+                android:id="@+id/OriginSwitch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:showText="false"
+                android:splitTrack="false" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="System Status (系统状态)"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#555555"
+        android:layout_marginBottom="4dp"/>
+
+    <TextView
+        android:id="@+id/logText"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:background="#1E1E1E"
+        android:textColor="#00FF00"
+        android:padding="10dp"
+        android:textSize="12sp"
+        android:typeface="monospace"
+        android:text="@string/Mao_NMEA_TitleView"
+        android:scrollbars="vertical"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="NMEA Stream (报文数据)"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#555555"
+        android:layout_marginBottom="4dp"/>
+
+    <TextView
+        android:id="@+id/nmeaText"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#1E1E1E"
+        android:textColor="#00BAFF"
+        android:padding="10dp"
+        android:textSize="11sp"
+        android:typeface="monospace"
+        android:text="@string/Mao_NMEA_TextView"
+        android:clickable="true"
+        android:scrollbars="vertical" />
+
+</LinearLayout>
