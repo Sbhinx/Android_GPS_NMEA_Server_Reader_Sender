@@ -1,21 +1,7 @@
-# Android_GPS_NMEA_Server_Reader_Sender
+# AndroidGPSNMEAServer
+基于开源项目[[Android_GPS_NMEA_Server_Reader_Sender](https://github.com/MaoJianwei/Android_GPS_NMEA_Server_Reader_Sender)](https://github.com/MaoJianwei/Android_GPS_NMEA_Server_Reader_Sender)打造，可实现使用谷歌FLP及原生GPS API对外广播GPGGA报文
 
-#### Android_GPS_NMEA_Server, read and convert NMEA message, send by WIFI, support BeiDou, GPS, GLONASS, etc.
+<img width="1440" height="3120" alt="image" src="https://github.com/user-attachments/assets/ad9a11e1-3c35-439f-98b0-dcb57faa3e84" />
 
-.
 
-#### GPS Client(uCenter, etc.) connect to our android project(Android_GPS_NMEA_Server_Reader_Sender)
 
-#### Use TCP connect to \<android-ip\>:\<NMEA-server-port\>, NMEA messages will be sent immediately and directly.
-
-#### Temporarily, \<NMEA-server-port\> is 8888
-
-.
-
-.
-
-.
-
-![ScreenShot_Android_GPS_NMEA_Server](https://github.com/MaoJianwei/Android_GPS_NMEA_Server_Reader_Sender/raw/master/ScreenShot_Android_GPS_NMEA_Server.jpg)
-
-![ScreenShot_uCenter](https://github.com/MaoJianwei/Android_GPS_NMEA_Server_Reader_Sender/raw/master/ScreenShot_uCenter.jpg)
