@@ -2,5 +2,5 @@
     <string name="app_name">GPS NMEA Server</string>
     <string name="mao_name">forked by sbhinx</string>
     <string name="Mao_NMEA_TitleView">Switch 1:\nText Output: Disable / Enable\nSwitch 2:\nChoose Source: Fused Location / API Convert</string>
-    <string name="Mao_NMEA_TextView">Fused Location / API Convert NMEA Message</string>
+    <string name="Mao_NMEA_TextView"></string>
 </resources>
