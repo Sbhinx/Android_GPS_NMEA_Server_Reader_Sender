@@ -26,24 +26,24 @@ public class MainActivity extends Activity {
     private TextView nmeaView;
     private Switch outputSwitch;
     private Switch originSwitch;
+    private Switch screenSwitch;
 
     private int logCount = 0;
     private List<String> logQueue = new ArrayList<>();
     private int nmeaCount = 0;
     private List<String> nmeaLogQueue = new ArrayList<>();
 
-    // 用于记录是否已经打印过“开始输出报文”
     private boolean hasLoggedStart = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // 🚀 删除了默认的 FLAG_KEEP_SCREEN_ON，现在由开关完全控制，默认不常亮
 
         initUI();
 
-        // 绑定内存级回调
         GpsNmeaService.uiCallback = new GpsNmeaService.NmeaCallback() {
             @Override
             public void onLogMessage(String msg) {
@@ -63,11 +63,12 @@ public class MainActivity extends Activity {
         this.logView = findViewById(R.id.logText);
         this.nmeaView = findViewById(R.id.nmeaText);
 
-        // 让状态输出框和报文输出框支持上下滑动
+        TextView maoText = findViewById(R.id.maoText);
+        maoText.setText("fork by sbhinx@" + win.maojianwei.nmea.nmeaserver.BuildConfig.VERSION_NAME);
+
         this.logView.setMovementMethod(new ScrollingMovementMethod());
         this.nmeaView.setMovementMethod(new ScrollingMovementMethod());
 
-        // 让报文输出框支持复制
         this.nmeaView.setOnClickListener(v -> {
             ClipboardManager clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             clipboardManager.setPrimaryClip(ClipData.newPlainText("NMEA", nmeaView.getText()));
@@ -86,14 +87,25 @@ public class MainActivity extends Activity {
         this.originSwitch = findViewById(R.id.OriginSwitch);
         this.originSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             GpsNmeaService.useApiConvert = isChecked;
-            programLog("👉 GPS模式已切换到: " + (isChecked ? "API转换" : "FLP融合"));
+            // 恢复原名
+            programLog("👉 原生转换: " + (isChecked ? "已打开" : "已关闭"));
+        });
+
+        this.screenSwitch = findViewById(R.id.ScreenSwitch);
+        this.screenSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                programLog("👉 屏幕常亮: 已打开");
+            } else {
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                programLog("👉 屏幕常亮: 已关闭");
+            }
         });
 
         GpsNmeaService.needOutput = true;
         GpsNmeaService.useApiConvert = false;
     }
 
-    // 🚀 核心升级：高版本 Android 智能权限动态申请
     private void checkAndroidPermission() {
         List<String> permissionsToRequest = new ArrayList<>();
 
@@ -157,7 +169,6 @@ public class MainActivity extends Activity {
 
             if (name == null) {
                 programLog("❌ 致命错误：系统找不到 GpsNmeaService 服务！");
-                programLog("👉 请务必把 <service> 标签加到 AndroidManifest.xml 里！");
             } else {
                 programLog("✅ 已向系统发送引擎启动指令");
             }
