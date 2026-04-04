@@ -4,14 +4,18 @@ android {
 
     namespace 'win.maojianwei.nmea.nmeaserver'
 
+    buildFeatures {
+        buildConfig true
+    }
+
     compileSdkVersion 33
 
     defaultConfig {
-        applicationId 'maojianwei.nmea.server'
+        applicationId 'maojianwei.nmea.server' // 你可以随便改这个身份证
         minSdkVersion 21
         targetSdkVersion 33
         versionCode 3
-        versionName '1.3'
+        versionName 'Ver.260405.r1' // 每次发版改这里就行
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
 
@@ -22,7 +26,12 @@ android {
         }
     }
 
-    productFlavors {
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            // 生成的名字将直接是：NmeaServer-v1.3.apk
+            def newName = "NmeaServer_${variant.versionName}.apk"
+            outputFileName = newName
+        }
     }
 }
 
